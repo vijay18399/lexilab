@@ -50,7 +50,7 @@ import { HotToastService } from '@ngxpert/hot-toast';
       background: #ffffff;
       display: flex;
       flex-direction: column;
-      padding: 1.5rem 2rem;
+      padding: 1.5rem 0.4rem;
       align-items: center;
       border-radius: 10px;
       width: 100%;

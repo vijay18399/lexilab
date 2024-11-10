@@ -27,7 +27,7 @@ import { Component, Input } from '@angular/core';
     }
     .loader-circle-66 {
       animation: loader-circle-66-spin 4s linear infinite;
-      color: hsl(248, 53%, 58%);
+      color: #01579E;
       fill: none;
       height: 96px;
       stroke: currentColor;

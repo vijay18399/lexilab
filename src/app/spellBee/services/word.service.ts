@@ -7,8 +7,8 @@ import { Preference } from '../models/preference';
   providedIn: 'root'
 })
 export class WordService {
-  // private apiUrl = 'https://dictionaryapp-44vf.onrender.com'
-  private apiUrl =  'http://localhost:3000';
+  private apiUrl = 'https://dictionaryapp-44vf.onrender.com'
+  // private apiUrl =  'http://localhost:3000';
 
   constructor(private http: HttpClient) {}
 

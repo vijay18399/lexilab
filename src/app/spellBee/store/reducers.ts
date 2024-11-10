@@ -1,7 +1,7 @@
 import { createReducer, on } from "@ngrx/store";
 import { Word } from "../models/word";
 import { Preference } from "../models/preference";
-import { setPreferences, loadWordsSuccess, loadWordFailure, updatedWordAsCompleted } from './actions'
+import { setPreferences, loadWordsSuccess, loadWordFailure, updatedWordAsCompleted, clearWords } from './actions'
 export interface SpellBeeState {
       preferences : Preference,
       words: Word[];
@@ -28,4 +28,5 @@ export const initialState: SpellBeeState = {
     return { ...state, words: updatedWords };
   }),
   on(loadWordFailure, (state, { error }) => ({ ...state, error: error })),
+  on(clearWords, (state) => ({ ...state, words: [] }))
   );

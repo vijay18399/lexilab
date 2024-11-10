@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Preference } from '../models/preference';
-import { Observable, Subscription } from 'rxjs';
+import { interval, map, Observable, Subscription, takeWhile } from 'rxjs';
 import { Store, select } from '@ngrx/store';
 import { selectError, selectWords } from '../store/selectors';
-import { loadWords, setPreferences, updatedWordAsCompleted } from '../store/actions';
+import { clearWords, loadWords, setPreferences, updatedWordAsCompleted } from '../store/actions';
 import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
@@ -17,7 +17,11 @@ import { ActivatedRoute, Router } from '@angular/router';
       <h1>Spell Bee Game</h1>
     </header>
   <div class="game-container" *ngIf="!loading && !gameEnded">
-    <score-timer-panel  [noOfQuestions]="words.length" [currentQuestion]="currentIndex+1" [score]="score" [timeLeft]="timeLeft"></score-timer-panel>
+    <score-timer-panel
+     [noOfQuestions]="words.length"
+     [currentQuestion]="currentIndex+1"
+     [score]="score"
+     [timeLeft]="displayTime"></score-timer-panel>
     <spell-bee-word
       *ngIf="currentWord"
       [word]="currentWord"
@@ -91,8 +95,10 @@ export class SpellBeeGameComponent implements OnInit, OnDestroy {
   currentIndex = 0;
   score = 0;
   timeLeft = 0;
-  timerInterval!: any;
+  timerSubscription!: Subscription;
   wordsSubscription!: Subscription;
+  timerStarted = false;
+  displayTime: string = '00:00';
 
   constructor(
     private router: Router,
@@ -117,6 +123,7 @@ export class SpellBeeGameComponent implements OnInit, OnDestroy {
   }
 
   private initializeGame() {
+    this.store.dispatch(clearWords());
     this.store.dispatch(loadWords());
     this.loading = true;
     this.gameEnded = false;
@@ -133,22 +140,57 @@ export class SpellBeeGameComponent implements OnInit, OnDestroy {
     this.error$ = this.store.pipe(select(selectError));
   }
 
+  private startTimer() {
+    if (this.preferences.isUnlimitedTime) {
+      this.displayTime = '∞';
+    } else if (!this.timerStarted) {
+      this.displayTime = `${this.preferences.timeLimit}:00`;
+      this.timeLeft = this.preferences.timeLimit * 60;
+      this.timerSubscription = interval(1000)
+        .pipe(
+          takeWhile(() => this.timeLeft > 0),
+          map(() => --this.timeLeft)
+        )
+        .subscribe({
+          next: () => this.updateDisplayTime(),
+          complete: () => this.endGame()
+        });
+      this.timerStarted = true;
+    }
+  }
+
+  private updateDisplayTime() {
+    const minutes = Math.floor(this.timeLeft / 60);
+    const seconds = this.timeLeft % 60;
+    this.displayTime = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  }
+
+  private endGame() {
+    this.timerSubscription?.unsubscribe();
+    this.gameEnded = true;
+  }
+
+  startNewGame() {
+    this.timerSubscription?.unsubscribe();
+    this.timerStarted = false;
+    this.initializeGame();
+  }
+
+  ngOnDestroy() {
+    this.timerSubscription?.unsubscribe();
+    this.wordsSubscription?.unsubscribe();
+  }
+
   get currentWord() {
     return this.words[this.currentIndex];
   }
 
   handleSuccess() {
     this.score++;
-    this.store.dispatch(updatedWordAsCompleted({
-      index : this.currentIndex
-    }));
-    if(this.currentIndex == this.words.length-1){
+    this.store.dispatch(updatedWordAsCompleted({ index: this.currentIndex }));
+    if (this.currentIndex === this.words.length - 1) {
       this.endGame();
     }
-  }
-
-  skipWord() {
-    this.advanceWord();
   }
 
   advanceWord() {
@@ -156,51 +198,10 @@ export class SpellBeeGameComponent implements OnInit, OnDestroy {
       this.endGame();
       return;
     }
-
     this.currentIndex++;
     if (this.currentIndex >= this.words.length) {
       this.endGame();
-      return;
     }
-
-
-  }
-
-  private startTimer() {
-    this.timeLeft = this.preferences.isUnlimitedTime ? Infinity : this.preferences.timeLimit * 60;
-    this.timerInterval = setInterval(() => {
-      if (this.timeLeft > 0 && this.timeLeft !== Infinity) {
-        this.timeLeft--;
-      } else {
-        this.skipWord();
-      }
-    }, 1000);
-  }
-
-  private resetTimer() {
-    clearInterval(this.timerInterval);
-    this.startTimer();
-  }
-
-  formatTime(seconds: number): string {
-    if (seconds === Infinity) return '∞';
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
-  }
-
-  private endGame() {
-    clearInterval(this.timerInterval);
-    this.gameEnded = true;
-  }
-
-  startNewGame() {
-    this.initializeGame();
-  }
-
-  ngOnDestroy() {
-    clearInterval(this.timerInterval);
-    this.wordsSubscription?.unsubscribe();
   }
 
   navigateHome() {
